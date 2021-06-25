@@ -105,7 +105,6 @@ exports.getAllReservations = getAllReservations;
  */
 
 const getAllProperties = (options, limit = 10) => {
- 
   let queryParams = [];
   let queryString = `
   SELECT properties.*, avg(property_reviews.rating) as average_rating
@@ -125,35 +124,31 @@ const getAllProperties = (options, limit = 10) => {
 
   if (options.minimum_rating) {
     queryParams.push(`${options.minimum_rating}`);
-    queryString += ` AND property_reviews.rating > $${queryParams.length}`
+    queryString += ` AND property_reviews.rating > $${queryParams.length}`;
   }
 
-  const minCostCents = (options.minimum_price_per_night * 100);
-  const maxCostCents = (options.maximum_price_per_night * 100);
+  const minCostCents = options.minimum_price_per_night * 100;
+  const maxCostCents = options.maximum_price_per_night * 100;
 
-if (options.maximum_price_per_night && options.minimum_price_per_night) {
+  if (options.maximum_price_per_night && options.minimum_price_per_night) {
     queryParams.push(minCostCents, maxCostCents);
-    queryString += ` AND properties.cost_per_night > $${queryParams.length - 1} AND properties.cost_per_night < $${queryParams.length}`
-  } else
-
-  if (options.minimum_price_per_night) {
+    queryString += ` AND properties.cost_per_night > $${
+      queryParams.length - 1
+    } AND properties.cost_per_night < $${queryParams.length}`;
+  } else if (options.minimum_price_per_night) {
     queryParams.push(minCostCents);
-    queryString += ` AND properties.cost_per_night < $${queryParams.length}`
-  } else
-  
- if (options.maximum_price_per_night) {
+    queryString += ` AND properties.cost_per_night < $${queryParams.length}`;
+  } else if (options.maximum_price_per_night) {
     queryParams.push(maxCostCents);
-    queryString += ` AND properties.cost_per_night > $${queryParams.length}`
-  } 
-  
+    queryString += ` AND properties.cost_per_night > $${queryParams.length}`;
+  }
+
   queryParams.push(limit);
   queryString += `
   GROUP BY properties.id
   ORDER BY cost_per_night
   LIMIT $${queryParams.length};
   `;
-
-  console.log("query", queryString, queryParams);
 
   return pool
     .query(queryString, queryParams)
@@ -172,10 +167,35 @@ exports.getAllProperties = getAllProperties;
  * @param {{}} property An object containing all of the property details.
  * @return {Promise<{}>} A promise to the property.
  */
+
 const addProperty = function (property) {
-  const propertyId = Object.keys(properties).length + 1;
-  property.id = propertyId;
-  properties[propertyId] = property;
-  return Promise.resolve(property);
+  let queryParams = Object.values(property);
+  return pool
+    .query(
+      `INSERT INTO properties (        
+title,
+description,
+number_of_bedrooms,
+number_of_bathrooms,
+parking_spaces,
+cost_per_night,
+thumbnail_photo_url,
+cover_photo_url,
+street,
+country,
+city,
+province,
+post_code,
+owner_id) 
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING*;`,
+      queryParams
+    )
+    .then((result) => {
+      if (!result) {
+        return null;
+      }
+      return result.rows;
+    });
 };
 exports.addProperty = addProperty;
+
